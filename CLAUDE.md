@@ -2,7 +2,9 @@
 
 ## Project Overview
 
-Oval is a standalone video player with a distinctive oval-shaped, futuristic aesthetic inspired by Winamp's form factor innovation. The project is currently in the **pre-implementation planning phase** with no source code yet written. The repository contains an agent specification document that defines the research and development roadmap.
+Oval is a standalone video player with a distinctive oval-shaped, futuristic aesthetic inspired by Winamp's form factor innovation. The project has completed **Phase 1 (Research)** and is ready to begin **Phase 2 (Implementation)**.
+
+**Key research outcome:** Mojo was evaluated and rejected for this project (see `research/MOJO_EVAL.md`). The implementation language is **Rust**, using wgpu for rendering, ffmpeg-next for video decoding, and winit for windowing.
 
 ## Repository Structure
 
@@ -10,44 +12,45 @@ Oval is a standalone video player with a distinctive oval-shaped, futuristic aes
 Oval/
 ├── CLAUDE.md                    # This file - AI assistant guide
 ├── oval-player-architect.md     # Agent specification and project blueprint
-├── research/                    # (planned) Research documentation
-│   ├── MOJO_EVAL.md            # Mojo/framework analysis
+├── research/
+│   ├── MOJO_EVAL.md            # Mojo evaluation (verdict: not suitable)
 │   ├── VIDEO_TECH.md           # Video codec and decoding research
 │   ├── WINDOW_SYSTEM.md        # Platform-specific window management
-│   └── UI_DESIGN.md            # Visual design and ASCII sketches
+│   └── UI_DESIGN.md            # Visual design, ASCII sketches, shader designs
 └── design/
-    └── ARCHITECTURE.md          # (planned) System architecture
+    └── ARCHITECTURE.md          # System architecture and implementation plan
 ```
 
-## Key Technical Context
+## Technology Stack
 
-- **Primary Language:** Mojo (with fallback to Rust/Swift/C++ if Mojo proves insufficient for GUI work)
-- **Target Platforms:** macOS and Windows
-- **Form Factor:** Large oval window, portrait dimensions (~9:16 aspect ratio)
-- **Visual Style:** Futuristic/arcane - glossy metallic appearance, transparent non-rectangular window
-- **Codec Support:** H.264, H.265/HEVC, VP9, AV1
-- **Hardware Acceleration:** Metal (macOS), DirectX/Vulkan (Windows)
+| Layer | Technology | Notes |
+|-------|-----------|-------|
+| Language | **Rust** | Mojo rejected — no GUI support, no Windows, no classes |
+| Windowing | winit | Cross-platform, raw handle access for platform interop |
+| GPU Rendering | wgpu | Metal (macOS), DX12/Vulkan (Windows) |
+| UI Controls | egui | Immediate-mode overlay for timeline, transport |
+| Video Decoding | ffmpeg-next | All codecs, hardware acceleration via hwaccel API |
+| Audio Output | cpal | Cross-platform audio |
+| macOS Interop | objc2 | NSWindow borderless + CAShapeLayer oval mask |
+| Windows Interop | windows-rs | WS_EX_LAYERED + per-pixel alpha + WM_NCHITTEST |
 
-## Development Phases
+## Key Technical Decisions
 
-### Phase 1 - Research (Current Phase)
-Research must be completed **before any code is written**. Five research areas:
-1. Language/Framework evaluation (Mojo capabilities for GUI)
-2. Video technology (codecs, hardware acceleration, decoding libraries)
-3. Window management (non-rectangular windows on macOS and Windows)
-4. UI/Rendering architecture (glossy effects, scrubbing, shaders)
-5. ASCII sketches and visual planning
+1. **Oval window:** Transparent borderless window + fragment shader alpha mask (not OS-level window regions)
+2. **Video texture pipeline:** Upload YUV planes as separate GPU textures, convert to RGB in fragment shader (avoids CPU-side conversion)
+3. **Glossy effect:** Shader-based specular highlight simulating curved reflective surface
+4. **Seeking:** Keyframe-seek + decode-forward for frame accuracy; coarse scrub during drag, fine resolve on release
+5. **Threading:** Decode thread (ring buffer) → Main thread (events + render) → Audio thread (cpal)
+6. **Video scaling:** "Cover" mode by default (fill oval, crop edges) — maximizes immersion
 
-Each research document must be comprehensive (1000+ words of substantive technical analysis).
+## Implementation Sprints (Phase 2)
 
-### Phase 2 - Implementation
-Sequential build order:
-1. Basic window creation and oval masking
-2. Video decoding and rendering pipeline
-3. Playback controls (play/pause)
-4. Scrubbing/seeking functionality
-5. Glossy effects and visual polish
-6. Cross-platform testing
+1. **Window + Oval Mask** — winit + wgpu + oval shader + platform config + hit-testing + dragging
+2. **Video Playback** — ffmpeg-next integration, decode thread, YUV texture upload, playback
+3. **Controls + Interaction** — egui overlay, timeline, scrubbing, play/pause
+4. **Visual Polish** — glossy overlay shader, vignette, idle state, drag-and-drop, animations
+5. **Hardware Accel + Audio** — VideoToolbox (macOS), DXVA (Windows), cpal audio, A/V sync
+6. **Cross-Platform QA** — macOS + Windows testing, codec matrix, performance profiling
 
 ## Priority Hierarchy
 
@@ -58,12 +61,11 @@ Sequential build order:
 
 ## Conventions and Rules
 
-- **No coding before research is complete** - all research docs must exist first
-- **No placeholder TODOs** - complete each feature fully before moving on
-- **ASCII sketches are mandatory** before implementation of visual features
-- **Verify Mojo capabilities** through documentation rather than assuming
-- **Cross-platform consistency** - design for lowest common denominator, then enhance
+- **No placeholder TODOs** — complete each feature fully before moving on
+- **ASCII sketches are mandatory** before implementation of visual features (see `research/UI_DESIGN.md`)
+- **Cross-platform consistency** — design for lowest common denominator, then enhance
 - **Present trade-offs explicitly** when multiple implementation options exist
+- Platform-specific code uses `#[cfg(target_os = "...")]` modules in `src/window/`
 
 ## Agent Configuration
 
