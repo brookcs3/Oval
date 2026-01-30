@@ -1,0 +1,8 @@
+[package]
+name = "oval-player"
+version = "0.1.0"
+edition = "2021"
+description = "A cyber-arcane oval video player built with Makepad"
+
+[dependencies]
+makepad-widgets = "1.0.0"
