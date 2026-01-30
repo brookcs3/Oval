@@ -4,7 +4,13 @@ live_design! {
     import makepad_widgets::base::*;
     import makepad_widgets::theme_desktop_dark::*;
 
-    // Custom oval drawing shader — the core visual identity
+    // Custom oval drawing shader — white pearl with oil-slick iridescence
+    //
+    // Visual identity: white/luminous base surface. The sheen shifts through
+    // oil-slick colors (magenta, teal, gold, violet) depending on the viewing
+    // angle (approximated by UV position + mouse offset). Think: a white
+    // sapphire lens with a thin-film interference coating. It has presence —
+    // oddly alive, like it shouldn't quite exist on your desktop.
     DrawOval = {{DrawOval}} {
         fn pixel(self) -> vec4 {
             let center = self.rect_size * 0.5;
@@ -19,37 +25,73 @@ live_design! {
                 return vec4(0.0, 0.0, 0.0, 0.0);
             }
 
-            // --- Background: dark metallic gradient ---
             let uv = self.pos;
-            let base_top = vec3(0.102, 0.102, 0.180);    // #1a1a2e
-            let base_bot = vec3(0.086, 0.129, 0.243);    // #16213e
-            let base = mix(base_top, base_bot, uv.y);
+
+            // --- Base: luminous white, slightly warm ---
+            let base = vec3(0.95, 0.95, 0.96);
+
+            // --- Thin-film iridescence (oil slick / sapphire glass) ---
+            // Simulates thin-film interference: color shifts based on
+            // surface angle. We use the distance from center as a proxy
+            // for viewing angle (steeper at edges = more color shift).
+            // Mouse offset rotates the interference pattern.
+            let angle = dist * 3.14159 * 1.8
+                + self.mouse_offset.x * 0.5
+                + self.mouse_offset.y * 0.3;
+
+            // Three phase-shifted sine waves → RGB thin-film spectrum
+            let film_r = 0.5 + 0.5 * sin(angle * 2.0 + 0.0);
+            let film_g = 0.5 + 0.5 * sin(angle * 2.0 + 2.094);  // +2π/3
+            let film_b = 0.5 + 0.5 * sin(angle * 2.0 + 4.189);  // +4π/3
+            let film = vec3(film_r, film_g, film_b);
+
+            // Iridescence strength: strongest at edges (steep angle),
+            // absent at center (head-on view). This is physically correct
+            // for thin-film interference.
+            let iridescence_mask = smoothstep(0.2, 0.9, dist);
+
+            // Mix: at center it's pure white, at edges the oil-slick
+            // colors bleed through. Subtle — 25% max blend.
+            let iridescent_color = mix(base, film, iridescence_mask * 0.25);
 
             // --- Specular highlight (upper region) ---
-            // Simulates light reflecting off a convex surface
+            // Bright white, like light hitting a convex glass surface
             let highlight_center = vec2(0.5 + self.mouse_offset.x * 0.15,
-                                        0.25 + self.mouse_offset.y * 0.08);
-            let highlight_d = (uv - highlight_center) / vec2(0.4, 0.2);
+                                        0.28 + self.mouse_offset.y * 0.08);
+            let highlight_d = (uv - highlight_center) / vec2(0.38, 0.18);
             let highlight_dist = length(highlight_d);
-            let highlight = exp(-highlight_dist * highlight_dist * 2.0);
-            let highlight_color = vec3(1.0, 1.0, 1.0) * highlight * 0.40;
+            let highlight = exp(-highlight_dist * highlight_dist * 2.5);
+
+            // The specular also picks up a faint iridescent tint
+            let spec_film_r = 0.5 + 0.5 * sin(angle * 1.5 + 1.0);
+            let spec_film_g = 0.5 + 0.5 * sin(angle * 1.5 + 3.094);
+            let spec_film_b = 0.5 + 0.5 * sin(angle * 1.5 + 5.189);
+            let spec_tint = mix(vec3(1.0), vec3(spec_film_r, spec_film_g, spec_film_b), 0.12);
+            let highlight_color = spec_tint * highlight * 0.45;
 
             // --- Secondary reflection (lower region) ---
-            let bottom_center = vec2(0.5 - self.mouse_offset.x * 0.08, 0.82);
-            let bottom_d = (uv - bottom_center) / vec2(0.3, 0.1);
+            let bottom_center = vec2(0.5 - self.mouse_offset.x * 0.08, 0.83);
+            let bottom_d = (uv - bottom_center) / vec2(0.28, 0.09);
             let bottom_dist = length(bottom_d);
             let bottom_highlight = exp(-bottom_dist * bottom_dist * 3.0);
-            let bottom_color = vec3(1.0, 1.0, 1.0) * bottom_highlight * 0.10;
+            let bottom_color = vec3(1.0, 1.0, 1.0) * bottom_highlight * 0.12;
 
-            // --- Edge vignette ---
-            let vignette = 1.0 - pow(dist, 3.0) * 0.4;
+            // --- Depth shading: subtle concavity ---
+            // Edges darken slightly to give the white surface dimension
+            let depth = 1.0 - pow(dist, 2.5) * 0.15;
 
-            // --- Rim light (subtle metallic edge glow) ---
-            let rim = smoothstep(0.85, 1.0, dist) * (1.0 - smoothstep(1.0 - edge, 1.0, dist));
-            let rim_color = vec3(0.3, 0.35, 0.5) * rim * 0.6;
+            // --- Rim: iridescent edge glow ---
+            // The very edge of the oval catches the most color — like
+            // the rim of a soap bubble or oil on water
+            let rim = smoothstep(0.82, 0.98, dist) * (1.0 - smoothstep(1.0 - edge, 1.0, dist));
+            let rim_hue = angle * 1.2 + 0.5;
+            let rim_r = 0.5 + 0.5 * sin(rim_hue);
+            let rim_g = 0.5 + 0.5 * sin(rim_hue + 2.094);
+            let rim_b = 0.5 + 0.5 * sin(rim_hue + 4.189);
+            let rim_color = vec3(rim_r, rim_g, rim_b) * rim * 0.35;
 
             // --- Composite ---
-            let color = base * vignette + highlight_color + bottom_color + rim_color;
+            let color = iridescent_color * depth + highlight_color + bottom_color + rim_color;
             let color = clamp(color, vec3(0.0), vec3(1.0));
 
             return vec4(color, oval_alpha);
