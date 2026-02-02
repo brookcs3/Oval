@@ -107,6 +107,9 @@ live_design! {
                 pass: {
                     clear_color: #0000
                 },
+                caption_bar = {
+                    visible: false
+                },
                 body = <View> {
                     width: Fill,
                     height: Fill,
@@ -139,6 +142,8 @@ pub struct DrawOval {
 pub struct App {
     #[live]
     ui: WidgetRef,
+    #[rust]
+    window_size: DVec2,
 }
 
 impl LiveRegister for App {
@@ -147,15 +152,59 @@ impl LiveRegister for App {
     }
 }
 
+/// Check if a point (in window coordinates) is inside the oval.
+/// The oval fills the entire window as an ellipse.
+fn point_in_oval(pos: DVec2, window_size: DVec2) -> bool {
+    if window_size.x <= 0.0 || window_size.y <= 0.0 {
+        return false;
+    }
+    let center = window_size * 0.5;
+    let dx = (pos.x - center.x) / center.x;
+    let dy = (pos.y - center.y) / center.y;
+    (dx * dx + dy * dy) <= 1.0
+}
+
 impl MatchEvent for App {
     fn handle_actions(&mut self, _cx: &mut Cx, _actions: &Actions) {
-        // Will add transport controls here in Sprint 4
+        // Transport controls in Sprint 4
     }
 }
 
 impl AppMain for App {
     fn handle_event(&mut self, cx: &mut Cx, event: &Event) {
         self.match_event(cx, event);
+
+        // Window drag: let user drag the window by clicking inside the oval.
+        // Makepad's WindowDragQuery fires on every mouse-down; respond with
+        // Caption to tell the OS to start a window drag.
+        if let Event::WindowDragQuery(dq) = event {
+            if point_in_oval(dq.abs, self.window_size) {
+                dq.response.set(WindowDragQueryResponse::Caption);
+            }
+        }
+
+        // Track window size for hit-testing
+        if let Event::WindowGeomChange(gc) = event {
+            self.window_size = gc.new_geom.inner_size;
+        }
+
+        // Mouse hover: update the DrawOval shader's mouse_offset uniform
+        // so the iridescent highlight follows the cursor.
+        if let Event::MouseMove(mm) = event {
+            if self.window_size.x > 0.0 && self.window_size.y > 0.0 {
+                // Normalize mouse position to -1..1 range centered on oval
+                let nx = (mm.abs.x / self.window_size.x - 0.5) * 2.0;
+                let ny = (mm.abs.y / self.window_size.y - 0.5) * 2.0;
+
+                // Update the shader uniform on the oval_view's background
+                let oval_view = self.ui.view(id!(oval_view));
+                oval_view.apply_over(cx, live! {
+                    draw_bg: { mouse_offset: (vec2(nx as f32, ny as f32)) }
+                });
+                oval_view.redraw(cx);
+            }
+        }
+
         self.ui.handle_event(cx, event, &mut Scope::empty());
     }
 }
