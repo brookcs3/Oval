@@ -2,7 +2,7 @@
 
 ## 1. Architecture Overview
 
-**Stack:** Makepad (Rust, GPU-native) + Mojo (GPU refraction engine). **macOS only.**
+**Stack:** Makepad (Rust, GPU-native) + Mojo (GPU refraction engine). **macOS + Linux** (no Windows — Mojo limitation).
 
 This architecture replaces the earlier winit/wgpu/egui plan. Makepad handles windowing, rendering, and UI natively — no separate windowing or GPU crate needed. Mojo provides a GPU compute kernel for the real-time glass refraction effect (the "Milkdrop" of Oval).
 
@@ -15,7 +15,7 @@ This architecture replaces the earlier winit/wgpu/egui plan. Makepad handles win
 | **Video Decoding** | ffmpeg-next | Demux, decode, hardware accel (VideoToolbox) |
 | **Audio Output** | cpal | Audio playback, A/V sync clock source |
 | **Interop** | C FFI | Mojo .dylib loaded by Rust at runtime |
-| **Platform** | macOS only | Metal backend via Makepad's platform layer |
+| **Platform** | macOS + Linux | Metal (macOS), OpenGL (Linux). No Windows (Mojo limitation) |
 
 ### Why Makepad (Not winit + wgpu + egui)
 
@@ -79,7 +79,7 @@ This architecture replaces the earlier winit/wgpu/egui plan. Makepad handles win
 │  ┌──────────────────────────────────────────────────────────┐ │
 │  │              MAKEPAD PLATFORM LAYER                       │ │
 │  │                                                          │ │
-│  │  macOS only — Metal backend                              │ │
+│  │  macOS (Metal) + Linux (OpenGL). No Windows.              │ │
 │  │  NSWindow: borderless, transparent, isOpaque=false       │ │
 │  │  WindowDragQuery for oval-area dragging                  │ │
 │  │  Hit-testing via ellipse equation in event handler       │ │

@@ -6,7 +6,7 @@ Oval is a standalone video player with a distinctive oval-shaped, cyber-arcane a
 
 **Phase 1 (Research) is complete.** The project is in **Phase 2 (Implementation)**.
 
-**Stack:** Makepad (Rust GPU-native UI framework, 1.0 May 2025) + Mojo (GPU refraction engine). **macOS only.**
+**Stack:** Makepad (Rust GPU-native UI framework, 1.0 May 2025) + Mojo (GPU refraction engine). **macOS + Linux** (no Windows — Mojo limitation).
 
 ## Repository Structure
 
@@ -35,20 +35,20 @@ Oval/
 | Refraction Engine | **Mojo** | GPU compute kernel for real-time glass refraction |
 | Video Decoding | ffmpeg-next | All codecs, VideoToolbox hardware acceleration |
 | Audio Output | cpal | Cross-platform audio |
-| Platform | **macOS only** | Metal backend, NSWindow borderless |
+| Platform | **macOS + Linux** | Metal (macOS), OpenGL (Linux). No Windows (Mojo limitation) |
 
 ## Why This Stack
 
 - **Makepad** — brand new GPU-native framework where ALL rendering is on GPU. Styling is done with actual shaders. The glossy/refractive aesthetic is a first-class citizen, not a hack bolted on.
 - **Mojo** — GPU compute kernels for the refraction effect. Light bends through the oval surface using real physics (Snell's law). The video underneath distorts like looking through curved glass. This is the "Milkdrop" of Oval — the thing people stare at.
-- **macOS only** — Mojo doesn't support Windows. For a novelty/showcase project, this is fine.
+- **macOS + Linux** — Mojo supports both. No Windows (Mojo limitation). Makepad handles both via Metal (macOS) and OpenGL (Linux).
 
 ## Key Technical Decisions
 
 1. **Oval window:** Makepad transparent borderless window + shader-based oval mask
 2. **Glass refraction:** Mojo GPU kernel computes per-pixel refraction. Video warps through curved glass surface. Specular highlights follow mouse. Chromatic aberration at edges.
 3. **Video pipeline:** ffmpeg-next decode → YUV texture upload → Makepad shader compositing
-4. **Mojo interop:** Mojo compiles to shared library (.dylib), Rust calls via C FFI
+4. **Mojo interop:** Mojo compiles to shared library (.dylib on macOS, .so on Linux), Rust calls via C FFI
 5. **Video scaling:** "Cover" mode (fill oval, crop edges)
 6. **TikTok format:** Portrait ~9:16, opinionated — this is what Oval plays
 

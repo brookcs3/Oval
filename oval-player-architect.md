@@ -23,10 +23,10 @@ You are building Oval — a standalone TikTok-format video player with a cyber-a
 | Layer | Technology |
 |-------|-----------|
 | UI Framework | **Makepad** (Rust, GPU-native, 1.0 May 2025) |
-| Refraction Engine | **Mojo** (GPU compute kernel → .dylib → Rust FFI) |
-| Video Decoding | ffmpeg-next (H.264/H.265/VP9/AV1 + VideoToolbox) |
+| Refraction Engine | **Mojo** (GPU compute kernel → .dylib/.so → Rust FFI) |
+| Video Decoding | ffmpeg-next (H.264/H.265/VP9/AV1 + VideoToolbox on macOS) |
 | Audio | cpal |
-| Platform | **macOS only** (Metal backend) |
+| Platform | **macOS + Linux** (Metal / OpenGL). No Windows (Mojo limitation) |
 
 ## Implementation Sprints
 
