@@ -5,12 +5,12 @@ live_design! {
     import makepad_widgets::theme_desktop_dark::*;
 
     // ─────────────────────────────────────────────────────────────
-    // DrawOval: White pearl surface with oil-slick iridescent sheen
+    // DrawOval: White pearl with occasional oil-slick shimmer
     //
-    // The oval is an OBJECT, not a window. A white sapphire lens
-    // with thin-film interference coating. It breathes when idle
-    // (time uniform pulses the highlight). Mouse movement tilts the
-    // interference pattern. Edges catch rainbow like a soap bubble.
+    // The oval is an OBJECT — a mysterious artifact. Mostly quiet,
+    // luminous white pearl. Occasionally, a shimmer of oil-slick
+    // iridescence flows across the surface like thin-film interference.
+    // Arcane. Otherworldly. A thing from somewhere else.
     // ─────────────────────────────────────────────────────────────
     DrawOval = {{DrawOval}} {
         fn pixel(self) -> vec4 {
@@ -28,75 +28,120 @@ live_design! {
 
             let uv = self.pos;
 
-            // --- Idle breathing: slow pulsing via time uniform ---
-            let breathe = sin(self.time * 0.8) * 0.5 + 0.5;  // 0..1 pulse
-            let breathe_subtle = breathe * 0.06;  // very subtle
+            // ═══════════════════════════════════════════════════════════
+            // OCCASIONAL SHIMMER — oil slick flows across every ~5-8 sec
+            // ═══════════════════════════════════════════════════════════
+            //
+            // Multiple sine waves at incommensurate frequencies create
+            // quasi-random "shimmer events". When waves align → shimmer.
 
-            // --- Base: luminous white, slightly warm ---
-            let base = vec3(0.95 + breathe_subtle, 0.95 + breathe_subtle, 0.96 + breathe_subtle);
+            let wave1 = sin(self.time * 0.4) * sin(self.time * 0.17);
+            let wave2 = sin(self.time * 0.29 + 2.0) * sin(self.time * 0.11);
+            let shimmer_trigger = max(wave1, wave2);
 
-            // --- Thin-film iridescence (oil slick / sapphire glass) ---
-            // Color shifts based on surface angle + mouse + time drift.
-            let angle = dist * 3.14159 * 1.8
-                + self.mouse_offset.x * 0.5
-                + self.mouse_offset.y * 0.3
-                + self.time * 0.15;  // slow drift when idle
+            // Shimmer only appears when trigger exceeds threshold
+            // High threshold = rare, subtle appearances
+            let shimmer_active = smoothstep(0.75, 0.92, shimmer_trigger);
 
-            // Three phase-shifted sine waves → RGB thin-film spectrum
-            let film_r = 0.5 + 0.5 * sin(angle * 2.0 + 0.0);
-            let film_g = 0.5 + 0.5 * sin(angle * 2.0 + 2.094);
-            let film_b = 0.5 + 0.5 * sin(angle * 2.0 + 4.189);
-            let film = vec3(film_r, film_g, film_b);
+            // The shimmer flows diagonally across the surface
+            // Direction slowly rotates over time for variety
+            let flow_angle = self.time * 0.05;
+            let flow_dir = vec2(cos(flow_angle), sin(flow_angle) * 0.6);
+            let flow_pos = dot(p, flow_dir);
 
-            // Iridescence strength: edges show more color
-            let iridescence_mask = smoothstep(0.2, 0.9, dist);
-            let iridescent_color = mix(base, film, iridescence_mask * 0.25);
+            // Shimmer wave travels across the surface
+            let shimmer_phase = self.time * 0.7;
+            let shimmer_wave = flow_pos - fract(shimmer_phase) * 2.5 + 0.8;
 
-            // --- Specular highlight (upper region, follows mouse) ---
+            // Sharp wavefront with soft falloff — like oil spreading
+            let shimmer_band = exp(-shimmer_wave * shimmer_wave * 8.0)
+                             * smoothstep(-0.3, 0.1, shimmer_wave);
+
+            // Oil-slick spectrum: deep purples, teals, magentas, golds
+            let oil_hue = shimmer_wave * 12.0 + self.time * 0.3 + dist * 4.0;
+            let oil_r = 0.5 + 0.5 * sin(oil_hue + 0.0);
+            let oil_g = 0.5 + 0.5 * sin(oil_hue + 2.094);
+            let oil_b = 0.5 + 0.5 * sin(oil_hue + 4.189);
+            let oil_color = vec3(oil_r, oil_g, oil_b);
+
+            // Final shimmer: active * band * color intensity
+            // Subtle — a hint, not a show
+            let shimmer = shimmer_active * shimmer_band * 0.22;
+
+            // ═══════════════════════════════════════════════════════════
+            // BASE: Luminous white pearl — the quiet state
+            // ═══════════════════════════════════════════════════════════
+
+            let base = vec3(0.96, 0.96, 0.97);
+
+            // Very subtle static iridescence at edges (always present, faint)
+            let edge_angle = dist * 3.14159 * 1.5
+                + self.mouse_offset.x * 0.4
+                + self.mouse_offset.y * 0.25;
+            let edge_film_r = 0.5 + 0.5 * sin(edge_angle * 2.0);
+            let edge_film_g = 0.5 + 0.5 * sin(edge_angle * 2.0 + 2.094);
+            let edge_film_b = 0.5 + 0.5 * sin(edge_angle * 2.0 + 4.189);
+            let edge_film = vec3(edge_film_r, edge_film_g, edge_film_b);
+
+            // Edge iridescence: very subtle, only at rim
+            let edge_mask = smoothstep(0.5, 0.95, dist) * 0.12;
+            let pearl_color = mix(base, edge_film, edge_mask);
+
+            // ═══════════════════════════════════════════════════════════
+            // SPECULAR HIGHLIGHTS — the glass surface
+            // ═══════════════════════════════════════════════════════════
+
+            // Primary highlight (upper region, follows mouse)
             let highlight_center = vec2(
                 0.5 + self.mouse_offset.x * 0.15,
                 0.28 + self.mouse_offset.y * 0.08
             );
             let highlight_d = (uv - highlight_center) / vec2(0.38, 0.18);
             let highlight_dist = length(highlight_d);
-            let highlight = exp(-highlight_dist * highlight_dist * 2.5);
+            let highlight = exp(-highlight_dist * highlight_dist * 2.5) * 0.38;
 
-            // Specular picks up faint iridescent tint
-            let spec_film_r = 0.5 + 0.5 * sin(angle * 1.5 + 1.0);
-            let spec_film_g = 0.5 + 0.5 * sin(angle * 1.5 + 3.094);
-            let spec_film_b = 0.5 + 0.5 * sin(angle * 1.5 + 5.189);
-            let spec_tint = mix(vec3(1.0), vec3(spec_film_r, spec_film_g, spec_film_b), 0.12);
-            let highlight_color = spec_tint * highlight * (0.40 + breathe_subtle);
-
-            // --- Secondary reflection (lower region) ---
+            // Secondary reflection (lower, dimmer)
             let bottom_center = vec2(0.5 - self.mouse_offset.x * 0.08, 0.83);
             let bottom_d = (uv - bottom_center) / vec2(0.28, 0.09);
             let bottom_dist = length(bottom_d);
-            let bottom_highlight = exp(-bottom_dist * bottom_dist * 3.0);
-            let bottom_color = vec3(1.0, 1.0, 1.0) * bottom_highlight * 0.12;
+            let bottom_highlight = exp(-bottom_dist * bottom_dist * 3.0) * 0.10;
 
-            // --- Depth shading ---
-            let depth = 1.0 - pow(dist, 2.5) * 0.15;
+            // Depth shading — center brighter than edges
+            let depth = 1.0 - pow(dist, 2.5) * 0.12;
 
-            // --- Rim: iridescent edge glow ---
-            let rim = smoothstep(0.82, 0.98, dist) * (1.0 - smoothstep(1.0 - edge, 1.0, dist));
-            let rim_hue = angle * 1.2 + 0.5;
+            // ═══════════════════════════════════════════════════════════
+            // RIM — subtle edge definition
+            // ═══════════════════════════════════════════════════════════
+
+            let rim = smoothstep(0.85, 0.98, dist) * (1.0 - smoothstep(1.0 - edge, 1.0, dist));
+            let rim_hue = edge_angle * 1.2 + shimmer_trigger * 2.0;
             let rim_r = 0.5 + 0.5 * sin(rim_hue);
             let rim_g = 0.5 + 0.5 * sin(rim_hue + 2.094);
             let rim_b = 0.5 + 0.5 * sin(rim_hue + 4.189);
-            let rim_color = vec3(rim_r, rim_g, rim_b) * rim * 0.35;
+            let rim_color = vec3(rim_r, rim_g, rim_b) * rim * (0.18 + shimmer_active * 0.12);
 
-            // --- Drop zone indicator ---
-            // When hovering (self.hover > 0), show a subtle inner ring
+            // ═══════════════════════════════════════════════════════════
+            // DROP ZONE INDICATOR — shows on hover
+            // ═══════════════════════════════════════════════════════════
+
             let drop_ring = smoothstep(0.58, 0.60, dist) * (1.0 - smoothstep(0.60, 0.62, dist));
             let drop_color = vec3(0.7, 0.75, 0.85) * drop_ring * self.hover * 0.4;
 
-            // --- Composite ---
-            let color = iridescent_color * depth
-                + highlight_color
-                + bottom_color
-                + rim_color
-                + drop_color;
+            // ═══════════════════════════════════════════════════════════
+            // COMPOSITE — bring it all together
+            // ═══════════════════════════════════════════════════════════
+
+            let color = pearl_color * depth;
+
+            // Add the occasional oil-slick shimmer
+            let color = mix(color, oil_color, shimmer);
+
+            // Add highlights
+            let color = color + vec3(highlight + bottom_highlight);
+
+            // Add rim and drop indicator
+            let color = color + rim_color + drop_color;
+
             let color = clamp(color, vec3(0.0), vec3(1.0));
 
             return vec4(color, oval_alpha);
