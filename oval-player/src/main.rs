@@ -30,19 +30,51 @@ struct GpuState {
     texture_bind_group: wgpu::BindGroup,
 }
 
+struct EggMask {
+    alpha: Vec<u8>,
+    width: u32,
+    height: u32,
+}
+
+impl EggMask {
+    fn from_png(bytes: &[u8]) -> Self {
+        let img = image::load_from_memory_with_format(bytes, image::ImageFormat::Png)
+            .expect("Failed to load egg mask")
+            .to_rgba8();
+        let (width, height) = img.dimensions();
+        let alpha: Vec<u8> = img.pixels().map(|p| p.0[3]).collect();
+        Self { alpha, width, height }
+    }
+
+    fn is_inside(&self, x_norm: f32, y_norm: f32) -> bool {
+        if x_norm < 0.0 || x_norm > 1.0 || y_norm < 0.0 || y_norm > 1.0 {
+            return false;
+        }
+        let px = (x_norm * (self.width - 1) as f32) as u32;
+        let py = (y_norm * (self.height - 1) as f32) as u32;
+        let idx = (py * self.width + px) as usize;
+        self.alpha.get(idx).copied().unwrap_or(0) > 10
+    }
+}
+
 struct App {
     window: Option<Arc<Window>>,
     gpu: Option<GpuState>,
+    egg_mask: EggMask,
     mouse_pos: [f32; 2],
+    cursor_inside: bool,
     start_time: Instant,
 }
 
 impl App {
     fn new() -> Self {
+        let egg_mask = EggMask::from_png(include_bytes!("../../egg--grok.png"));
         Self {
             window: None,
             gpu: None,
+            egg_mask,
             mouse_pos: [0.0, 0.0],
+            cursor_inside: false,
             start_time: Instant::now(),
         }
     }
@@ -430,10 +462,23 @@ impl ApplicationHandler for App {
                 if let Some(w) = &self.window {
                     let size = w.inner_size();
                     if size.width > 0 && size.height > 0 {
+                        let x_norm = position.x as f32 / size.width as f32;
+                        let y_norm = position.y as f32 / size.height as f32;
                         self.mouse_pos = [
-                            (position.x as f32 / size.width as f32 - 0.5) * 2.0,
-                            (position.y as f32 / size.height as f32 - 0.5) * 2.0,
+                            (x_norm - 0.5) * 2.0,
+                            (y_norm - 0.5) * 2.0,
                         ];
+                        self.cursor_inside = self.egg_mask.is_inside(x_norm, y_norm);
+                    }
+                }
+            }
+            WindowEvent::MouseInput { state, button, .. } => {
+                use winit::event::{ElementState, MouseButton};
+                if button == MouseButton::Left && state == ElementState::Pressed && self.cursor_inside {
+                    if let Some(w) = &self.window {
+                        if let Err(e) = w.drag_window() {
+                            log::warn!("drag_window failed: {e}");
+                        }
                     }
                 }
             }
