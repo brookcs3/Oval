@@ -1,0 +1,21 @@
+[package]
+name = "oval-player"
+version = "0.1.0"
+edition = "2021"
+description = "A mysterious oval video player — MDK meets Riven"
+
+[dependencies]
+winit = { version = "0.30", features = ["rwh_06"] }
+wgpu = { version = "24", features = ["wgsl"] }
+bytemuck = { version = "1.25", features = ["derive"] }
+image = { version = "0.25", default-features = false, features = ["png"] }
+pollster = "0.4"
+env_logger = "0.11"
+log = "0.4"
+raw-window-handle = "0.6"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.5"
+objc2-foundation = { version = "0.2", features = ["NSThread"] }
+objc2-app-kit = { version = "0.2", features = ["NSWindow", "NSColor", "NSView", "NSResponder"] }
+objc2-quartz-core = { version = "0.2", features = ["CALayer"] }

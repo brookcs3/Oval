@@ -1,0 +1,22 @@
+{
+  "project": "oval-player",
+  "thresholds": {
+    "max_file_length": 500,
+    "review_trigger_lines_changed": 100,
+    "architecture_change_review": true
+  },
+  "enforced_patterns": [
+    "cross_platform_required",
+    "no_placeholder_todos",
+    "ascii_sketches_before_visual_features"
+  ],
+  "stack_lock": {
+    "language": "rust",
+    "windowing": "winit",
+    "rendering": "wgpu",
+    "ui": "egui",
+    "video": "ffmpeg-next",
+    "audio": "cpal",
+    "platforms": ["macos", "windows"]
+  }
+}
